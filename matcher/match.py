@@ -10,6 +10,7 @@ BaseMatchScore = 10
 StateMatchBonus = 10
 NumCategories = 10
 
+
 def MatchAny(mentor_values, mentee_values):
     for quary_val in [x.strip() for x in mentee_values.split(',')]:
         for test_val in [x.strip() for x in mentor_values.split(',')]:
@@ -17,24 +18,22 @@ def MatchAny(mentor_values, mentee_values):
                 return True
     return False
 
+
 def PairScore(mentor, mentee):
     score = 0
 
     for category in ["UndergradInstitution", "UndergradMajor", "GapYear", "GenderIdentity", "SexualOrientation", "EthnicBackground", "Disability", "FirstGeneration", "ResearchArea", "CountryOfOrigin"]:
         if MatchAny(mentor[category].lower(), mentee[category].lower()) or mentee[category] == "":
-            score += BaseMatchScore + (NumCategories-int(mentee["Rank"+category]))
+            score += BaseMatchScore + \
+                (NumCategories-int(mentee["Rank"+category]))
         else:
             if int(mentee["Rank"+category]) == 1 and "No" in mentee["NoTopPriorityOkay"]:
                 return -1
 
-    
     if "US" in mentee["CountryOfOrigin"].upper() and "US" in mentor["CountryOfOrigin"].upper() and MatchAny(mentor["CountryOfOrigin"].lower(), mentee["CountryOfOrigin"].lower()):
         score += StateMatchBonus
 
     return score
-
-
-
 
 
 csv_labels_mentor = {
@@ -51,7 +50,7 @@ csv_labels_mentor = {
     "Disability": 38,
     "Citizenship": 39,
     "CountryOfOrigin": 40,
-    "StateOfOrigin":41,
+    "StateOfOrigin": 41,
     "ResearchArea": 30,
     "NumberMentees": 42
 }
@@ -69,9 +68,10 @@ csv_labels_mentee = {
     "Disability": 38,
     "Citizenship": 39,
     "CountryOfOrigin": 40,
-    "StateOfOrigin":41,
+    "StateOfOrigin": 41,
     "ResearchArea": 43,
     "ApplyThisYear": 59,
+    "OtherResources": 60,
     "RankUndergradInstitution": 46,
     "RankUndergradMajor": 47,
     "RankGapYear": 48,
@@ -147,6 +147,7 @@ for start in range(len(mentees)):
         mentor["NumberMenteesRemaining"] = int(mentor["NumberMentees"])
     pairings = []
     score = 0
+    missing_and_need = 0
     for offset in range(len(mentees)):
         i = (offset + start) % (len(mentees))
 
@@ -159,32 +160,31 @@ for start in range(len(mentees)):
             if match_score >= best_match_score:
                 best_match_score = match_score
                 best_mentor_match = j
-            
+
         if(best_mentor_match >= 0):
             pairings.append((best_mentor_match, i, best_match_score))
             score += best_match_score
             mentors[best_mentor_match]["NumberMenteesRemaining"] -= 1
+        elif("No" in mentees[i]["OtherResources"]):
+            missing_and_need += 1
 
     if score > best_score or (score == best_score and len(pairings) > len(best_pairings)):
         best_pairings = pairings
         best_score = score
-        print("Made %d Pairs with Total Score %d ... New Best!!" % (len(pairings), score))
+        print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ... New Best!!" %
+              (len(pairings), score, missing_and_need))
     else:
-        print("Made %d Pairs with Total Score %d ..." % (len(pairings), score))
+        print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ..." %
+              (len(pairings), score, missing_and_need))
 
 print("Writing Optimal Pairings to: %s ..." % (output_csv))
 with open(output_csv, 'w', newline='') as output_csv_file:
     output_writer = csv.writer(output_csv_file, delimiter=",")
-    output_writer.writerow(['Mentee Email', 'Mentee First Name', 'Mentee Last Name', 'Mentor Email', 'Mentor First Name', 'Mentor Last Name', 'Score'])
+    output_writer.writerow(['Mentee Email', 'Mentee First Name', 'Mentee Last Name',
+                            'Mentor Email', 'Mentor First Name', 'Mentor Last Name', 'Score'])
 
     for pairing in best_pairings:
-        output_writer.writerow([mentees[pairing[1]]["Email"], mentees[pairing[1]]["FirstName"], mentees[pairing[1]]["LastName"], mentors[pairing[0]]["Email"], mentors[pairing[0]]["FirstName"], mentors[pairing[0]]["LastName"], pairing[2]])
+        output_writer.writerow([mentees[pairing[1]]["Email"], mentees[pairing[1]]["FirstName"], mentees[pairing[1]]["LastName"],
+                                mentors[pairing[0]]["Email"], mentors[pairing[0]]["FirstName"], mentors[pairing[0]]["LastName"], pairing[2]])
 
 print("Done!")
-    
-
-
-
-
-        
-
