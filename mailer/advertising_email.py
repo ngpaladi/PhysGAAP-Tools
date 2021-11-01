@@ -13,12 +13,14 @@ import time
 
 SMTP_SERVER = "outgoing.mit.edu"
 SMTP_SERVER_PORT = '465'
+REPLY_TO = "physgaap@mit.edu"
 
 email_account_name = sys.argv[1]
 with open(sys.argv[2], 'r') as file:
     message_content = file.read()
-message_subject = ""
+message_subject = "MIT Physics Graduate Application Assistance Program 2021"
 message_cc = ""
+message_bcc = "npaladin@mit.edu"
 
 attachments = []
 for arg in sys.argv[4:]:
@@ -33,19 +35,21 @@ server.login(email_account_name, getpass(prompt="Email Password: "))
 
 with open(sys.argv[3],'r') as csv_file:
     data = csv.reader(csv_file)
+    next(data)
     for row in data:
         uni_name = row[0]
-        custom_message_subject = message_subject.replace('<University>', uni_name).replace('<university>', uni_name)
-        custom_message_content = message_content.replace('<University>', uni_name).replace('<university>', uni_name)
+        contact_name = row[2]
+        custom_message_subject = message_subject.replace('{{University}}', uni_name).replace('{{university}}', uni_name).replace('{{Recipient}}', contact_name).replace('{{recipient}}', contact_name)
+        custom_message_content = message_content.replace('{{University}}', uni_name).replace('{{university}}', uni_name).replace('{{Recipient}}', contact_name).replace('{{recipient}}', contact_name)
 
-        message_to = ""
-        for recipient in row[1:]:
-            message_to += str(recipient) + ","
-        message_to = message_to[:-1]
+        message_to = row[1]
+        message_from = "%s@mit.edu" % email_account_name
+        message_to_all = message_to.split(",") + message_cc.split(",") + message_bcc.split(",")
 
         message = MIMEMultipart()
-        message.attach(MIMEText(custom_message_content, 'plain'))
-        message['From'] = "%s@mit.edu" % email_account_name
+        message.attach(MIMEText(custom_message_content, 'html'))
+        message['From'] = message_from
+        message['Reply-To'] = REPLY_TO
         message['To'] = message_to
         message['Cc'] = message_cc
         message['Subject'] = custom_message_subject
@@ -53,7 +57,7 @@ with open(sys.argv[3],'r') as csv_file:
         for attachment in attachments:
             message.attach(attachment)
 
-        server.send_message(message.as_string())
+        server.send_message(message, message_from, message_to_all)
 
         time.sleep(2)
         
