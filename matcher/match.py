@@ -5,10 +5,13 @@
 
 import csv
 import sys
+import random
 
 BaseMatchScore = 10
 StateMatchBonus = 10
+NumShuffles = 100
 NumCategories = 10
+
 
 
 def MatchAny(mentor_values, mentee_values):
@@ -93,7 +96,8 @@ output_csv = str(sys.argv[3])
 mentors = []
 mentees = []
 
-with open(mentor_csv, newline='', encoding="utf16", errors='ignore') as mentor_file:
+# with open(mentor_csv, newline='', encoding="utf16", errors='ignore') as mentor_file:
+with open(mentor_csv, newline='') as mentor_file:
     mentor_reader = csv.reader(mentor_file, delimiter="\t", quotechar='"')
     for row in mentor_reader:
         if(not "@" in row[csv_labels_mentor["Email"]]):
@@ -114,7 +118,8 @@ with open(mentor_csv, newline='', encoding="utf16", errors='ignore') as mentor_f
 
 print("Loaded Mentors ...")
 
-with open(mentee_csv, newline='', encoding="utf16", errors='ignore') as mentee_file:
+# with open(mentee_csv, newline='', encoding="utf16", errors='ignore') as mentee_file:
+with open(mentee_csv, newline='') as mentee_file:
     mentee_reader = csv.reader(mentee_file, delimiter="\t", quotechar='"')
     for row in mentee_reader:
         if(not "@" in row[csv_labels_mentee["Email"]]):
@@ -142,40 +147,44 @@ best_score = 0
 
 print("Starting Matching ...")
 
-for start in range(len(mentees)):
-    for mentor in mentors:
-        mentor["NumberMenteesRemaining"] = int(mentor["NumberMentees"])
-    pairings = []
-    score = 0
-    missing_and_need = 0
-    for offset in range(len(mentees)):
-        i = (offset + start) % (len(mentees))
+key = list(range(len(mentees)))
+for shuffle in range(NumShuffles):
+    random.shuffle(key)
+    for start in range(len(mentees)):
+        for mentor in mentors:
+            mentor["NumberMenteesRemaining"] = int(mentor["NumberMentees"])
+        pairings = []
+        score = 0
+        missing_and_need = 0
 
-        best_mentor_match = -1
-        best_match_score = 0
-        for j in range(len(mentors)):
-            if(mentors[j]["NumberMenteesRemaining"] == 0):
-                continue
-            match_score = PairScore(mentors[j], mentees[i])
-            if match_score >= best_match_score:
-                best_match_score = match_score
-                best_mentor_match = j
+        for offset in range(len(mentees)):
+            i = (offset + start) % (len(mentees))
 
-        if(best_mentor_match >= 0):
-            pairings.append((best_mentor_match, i, best_match_score))
-            score += best_match_score
-            mentors[best_mentor_match]["NumberMenteesRemaining"] -= 1
-        elif("No" in mentees[i]["OtherResources"]):
-            missing_and_need += 1
+            best_mentor_match = -1
+            best_match_score = 0
+            for j in range(len(mentors)):
+                if(mentors[j]["NumberMenteesRemaining"] == 0):
+                    continue
+                match_score = PairScore(mentors[j], mentees[key[i]])
+                if match_score >= best_match_score:
+                    best_match_score = match_score
+                    best_mentor_match = j
 
-    if score > best_score or (score == best_score and len(pairings) > len(best_pairings)):
-        best_pairings = pairings
-        best_score = score
-        print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ... New Best!!" %
-              (len(pairings), score, missing_and_need))
-    else:
-        print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ..." %
-              (len(pairings), score, missing_and_need))
+            if(best_mentor_match >= 0):
+                pairings.append((best_mentor_match, key[i], best_match_score))
+                score += best_match_score
+                mentors[best_mentor_match]["NumberMenteesRemaining"] -= 1
+            elif("No" in mentees[key[i]]["OtherResources"]):
+                missing_and_need += 1
+
+        if score > best_score or (score == best_score and len(pairings) > len(best_pairings)):
+            best_pairings = pairings
+            best_score = score
+            print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ... New Best!!" %
+                (len(pairings), score, missing_and_need))
+        else:
+            print("Made %d Pairs with Total Score %d, Missing %d w/o Other Resources ..." %
+                (len(pairings), score, missing_and_need))
 
 print("Writing Optimal Pairings to: %s ..." % (output_csv))
 with open(output_csv, 'w', newline='') as output_csv_file:
